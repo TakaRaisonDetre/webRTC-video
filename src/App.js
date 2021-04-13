@@ -45,9 +45,6 @@ class App extends Component {
    }
 
 
-
-
-
    // called when getUserMedia() successfully returns - see below
     // getUserMedia() returns a MediaStream object (https://developer.mozilla.org/en-US/docs/Web/API/MediaStream)
     const success = (stream) => {
@@ -60,6 +57,7 @@ class App extends Component {
   const failure = (e) =>{
     console.log("getUserMedia Error", e)
   }
+
 
 // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
     // see the above link for more constraint options
@@ -83,7 +81,34 @@ class App extends Component {
   }
 
 
-  
+createOffer=()=>{
+  console.log('Offer')
+  this.pc.createOffer({offerToReceiveVideo:1})
+  .then(sdp=>{
+    console.log(JSON.stringify(sdp))
+    this.pc.setLocalDescription(sdp)
+  },e=>{})
+}
+
+setRemoteDescription =()=>{
+  const desc = JSON.parse(this.textref.value)
+  this.pc.setRemoteDescription(new RTCSessionDescription(desc))
+}
+
+createAnswer=()=>{
+  console.log('Answer')
+  this.pc.createAnswer({offerToReceiveVideo:1})
+  .then(sdp=>{
+    console.log(JSON.stringify(sdp))
+    this.pc.setLocalDescription(sdp)
+  },e=>{})
+}
+
+addCandidate=()=>{
+  const candidate = JSON.parse(this.textref.value)
+  console.log('Adding candidate', candidate)
+  this.pc.addIceCandidate(new RTCIceCandidate(candidate))
+}
 
   render(){
   
