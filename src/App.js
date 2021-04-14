@@ -1,4 +1,5 @@
 import React , {Component} from 'react'
+import io from 'socket.io-client'
 
 
 class App extends Component {
@@ -7,12 +8,51 @@ class App extends Component {
    
     this.localVideoref=React.createRef()
     this.remoteVideoref = React.createRef()
-
+    
+    this.socket =null
+    this.candidates=[]
   }
 
   componentDidMount(){
 
-    const pc_config = null
+     this.socket = io(
+       '/webrtcPeer', 
+       {
+        path:'/webrtc-video-chat',
+         query:{}
+       }
+     )
+
+     this.socket.on('connection-success', success=>{
+       console.log(success)
+     })
+
+     this.socket.on('offerOrAnswer', (sdp) => {
+      this.textref.value = JSON.stringify(sdp)
+
+      // set sdp as remote description
+      this.pc.setRemoteDescription(new RTCSessionDescription(sdp))
+    })
+
+    this.socket.on('candidate', (candidate) => {
+      // console.log('From Peer... ', JSON.stringify(candidate))
+      // this.candidates = [...this.candidates, candidate]
+      this.pc.addIceCandidate(new RTCIceCandidate(candidate))
+    })
+
+
+    const pc_config = {
+      "iceServers": [
+        // {
+        //   urls: 'stun:[STUN_IP]:[PORT]',
+        //   'credentials': '[YOR CREDENTIALS]',
+        //   'username': '[USERNAME]'
+        // },
+        {
+          urls : 'stun:stun.l.google.com:19302'
+        }
+      ]
+    }
 
     // const pc_config1 = {
     //   "iceServers": [
@@ -32,7 +72,11 @@ class App extends Component {
   this.pc.onicecandidate=(e)=>{
     // send the candidates to the remote peer
       // see addCandidate below to be triggered on the remote peer
-    if(e.candidate) console.log(JSON.stringify(e.candidate))
+    if(e.candidate) {
+     
+     // console.log(JSON.stringify(e.candidate))
+      this.sendToPeer('candidate', e.candidate)
+    }
   }
 // triggered when there is a change in connection state
   this.pc.oniceconnectionstatechange =(e) =>{
@@ -80,13 +124,21 @@ class App extends Component {
 
   }
 
+  // message type is OfferorAnser or candidate
+sendToPeer = (messageType, payload)=>{
+  this.socket.emit(messageType, {
+    socketID: this.socket.id,
+    payload
+  })
+}  
 
 createOffer=()=>{
   console.log('Offer')
   this.pc.createOffer({offerToReceiveVideo:1})
   .then(sdp=>{
-    console.log(JSON.stringify(sdp))
+    //console.log(JSON.stringify(sdp))
     this.pc.setLocalDescription(sdp)
+    this.sendToPeer('offerOrAnswer', sdp)
   },e=>{})
 }
 
@@ -101,13 +153,20 @@ createAnswer=()=>{
   .then(sdp=>{
     console.log(JSON.stringify(sdp))
     this.pc.setLocalDescription(sdp)
+    this.sendToPeer('offerOrAnswer', sdp)
   },e=>{})
 }
 
 addCandidate=()=>{
-  const candidate = JSON.parse(this.textref.value)
-  console.log('Adding candidate', candidate)
-  this.pc.addIceCandidate(new RTCIceCandidate(candidate))
+  // const candidate = JSON.parse(this.textref.value)
+  // console.log('Adding candidate', candidate)
+  // this.pc.addIceCandidate(new RTCIceCandidate(candidate))
+
+  this.candidates.forEach(candidate=>{
+    console.log(JSON.stringify(candidate))
+    this.pc.addIceCandidate(new RTCIceCandidate(candidate))
+  });
+
 }
 
   render(){
